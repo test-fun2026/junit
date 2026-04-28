@@ -289,3 +289,39 @@ Request → ValidationAspect (set baggage)
        → Service → Executor → Kafka/MQ/HTTP
        → Downstream services receive SAME requestId
 
+import brave.Tracing;
+import brave.propagation.CurrentTraceContext;
+import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.sampler.Sampler;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.brave.bridge.BraveTracer;
+import io.micrometer.tracing.brave.bridge.BraveCurrentTraceContext;
+import io.micrometer.tracing.brave.bridge.BraveBaggageManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class TracingConfig {
+
+    @Bean
+    public Tracing braveTracing() {
+        return Tracing.newBuilder()
+                .currentTraceContext(threadLocalCurrentTraceContext())
+                .sampler(Sampler.ALWAYS_SAMPLE)
+                .build();
+    }
+
+    @Bean
+    public CurrentTraceContext threadLocalCurrentTraceContext() {
+        return ThreadLocalCurrentTraceContext.newBuilder().build();
+    }
+
+    @Bean
+    public Tracer tracer(Tracing tracing) {
+        return new BraveTracer(
+                tracing.tracer(),
+                new BraveCurrentTraceContext(tracing.currentTraceContext()),
+                new BraveBaggageManager()
+        );
+    }
+}
