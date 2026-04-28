@@ -325,3 +325,30 @@ public class TracingConfig {
         );
     }
 }
+
+-------------
+@Before("@annotation(validateRequest)")
+public void before(JoinPoint joinPoint, ValidateRequest validateRequest) {
+
+    Span span = tracer.nextSpan().name("validation-aspect").start();
+
+    try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+
+        log.info("inside span = {}", tracer.currentSpan());
+
+        if (joinPoint.getArgs().length > 0 &&
+            joinPoint.getArgs()[0] instanceof CoreIntegrationRequest req) {
+
+            String requestId = req.getHeader().getRequestId();
+            String uetr = req.getPaymentInfo() != null
+                    ? req.getPaymentInfo().getUetr()
+                    : "";
+
+            span.tag("Micro-Request-Id", requestId);
+            span.tag("Micro-Uetr", uetr);
+        }
+
+    } finally {
+        span.end();
+    }
+}
